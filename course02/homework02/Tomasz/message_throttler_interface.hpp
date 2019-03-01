@@ -1,22 +1,25 @@
 #pragma once
 
+#include <boost/circular_buffer.hpp>
+
 template<
 	typename _Message,
 	typename _MessageConsumer,
 	typename _MessageDisposer,
 	typename _Timestamp,
 	typename _Timestamper,
-	typename _TimestampThreshold,
-	typename _Buffer
+	typename _TimestampThreshold
 >
 class message_throttler_interface
 {
 public:
 	message_throttler_interface(
+		std::size_t bufferSize,
 		_MessageConsumer& messageConsumer, 
 		_MessageDisposer& messageDisposer, 
 		_Timestamper& timestamper,
 		_TimestampThreshold & timestampThreshold) :
+		mBuffer(bufferSize),
 		mMessageConsumer(messageConsumer),
 		mMessageDisposer(messageDisposer),
 		mTimestamper(timestamper),
@@ -40,7 +43,7 @@ private:
 	void try_make_space_in_buffer(const _Timestamp& now)
 	{
 		if (mBuffer.full() && !mTimestampThreshold(now, mBuffer.front()))
-			mBuffer.pop();
+			mBuffer.pop_front();
 	}
 
 	void try_send(const _Message& message, const _Timestamp& now)
@@ -54,7 +57,7 @@ private:
 	void consume(const _Message& message, const _Timestamp& now)
 	{
 		mMessageConsumer(message);
-		mBuffer.push(now);
+		mBuffer.push_back(now);
 	}
 
 	void dispose(const _Message& message)
@@ -68,5 +71,5 @@ private:
 	_Timestamper& mTimestamper;
 	_TimestampThreshold& mTimestampThreshold;
 
-	_Buffer mBuffer;
+	boost::circular_buffer<_Timestamp> mBuffer;
 };

@@ -17,10 +17,12 @@ class message_throttler
 {
 public:
 	message_throttler(
-		const _MessageConsumer& messageConsumer, 
-		const _MessageDisposer& messageDisposer, 
+		std::size_t bufferSize,
+		const _MessageConsumer& messageConsumer,
+		const _MessageDisposer& messageDisposer,
 		const _Timestamper& timestamper,
 		const _TimestampThreshold& timestampThreshold) :
+		mBufferSize(bufferSize),
 		mMessageConsumer(messageConsumer),
 		mMessageDisposer(messageDisposer),
 		mTimestamper(timestamper),
@@ -29,16 +31,17 @@ public:
 
 	_MessageThrottlerInterface& from(const _ClientId& clientId)
 	{
-		auto element = mClients.emplace(clientId, nullptr);
-		auto& client = element.first->second;
+		auto& client = mClients[clientId];
 
-		if (element.second)
-			client = std::make_unique<_MessageThrottlerInterface>(mMessageConsumer, mMessageDisposer, mTimestamper, mTimestampThreshold);
+		if (client == nullptr)
+			client = std::make_unique<_MessageThrottlerInterface>(mBufferSize, mMessageConsumer, mMessageDisposer, mTimestamper, mTimestampThreshold);
 
 		return *client;
 	}
 
 private:
+	std::size_t mBufferSize;
+
 	_MessageConsumer mMessageConsumer;
 	_MessageDisposer mMessageDisposer;
 
