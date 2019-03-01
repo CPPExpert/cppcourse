@@ -1,6 +1,9 @@
 #pragma once
 
-#include<memory>
+#include <memory>
+#include <map>
+
+#include "message_throttler_interface.hpp"
 
 template<
 	typename _ClientId,
@@ -9,13 +12,13 @@ template<
 	typename _MessageDisposer,
 	typename _Timestamp,
 	typename _Timestamper,
-	typename _TimestampThreshold,
-	typename _MessageThrottlerInterface,
-	typename _Map
+	typename _TimestampThreshold
 >
 class message_throttler
 {
 public:
+	using _MessageThrottlerInterface = message_throttler_interface<_Message, _MessageConsumer, _MessageDisposer, _Timestamp, _Timestamper, _TimestampThreshold>;
+
 	message_throttler(
 		std::size_t bufferSize,
 		const _MessageConsumer& messageConsumer,
@@ -48,5 +51,5 @@ private:
 	_Timestamper mTimestamper;
 	_TimestampThreshold mTimestampThreshold;
 
-	_Map mClients;
+	std::map<_ClientId, std::unique_ptr<_MessageThrottlerInterface>>  mClients;
 };
