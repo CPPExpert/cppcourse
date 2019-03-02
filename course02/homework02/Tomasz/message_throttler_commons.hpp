@@ -13,21 +13,7 @@ struct message_swallower
 	{ }
 };
 
-struct chrono_timestamp_threshold
-{
-	chrono_timestamp_threshold(std::chrono::milliseconds milliseconds) :
-		milliseconds(milliseconds)
-	{ }
-
-	bool operator()(std::chrono::milliseconds now, std::chrono::milliseconds timestamp)
-	{
-		return (now - timestamp) < milliseconds;
-	}
-
-	std::chrono::milliseconds milliseconds;
-};
-
-struct chrono_timestamper
+struct chrono_clock
 {
 	std::chrono::milliseconds operator()()
 	{
@@ -38,24 +24,20 @@ struct chrono_timestamper
 template<
 	typename _ClientId,
 	typename _Message,
-	typename _Timestamp = std::chrono::milliseconds,
+	typename _Clock = chrono_clock,
 	typename _MessageConsumer = message_swallower<_Message>,
-	typename _MessageDisposer = message_swallower<_Message>,
-	typename _Timestamper = chrono_timestamper,
-	typename _TimestampThreshold = chrono_timestamp_threshold
+	typename _MessageDisposer = message_swallower<_Message>
 >
-message_throttler<_ClientId, _Message, _MessageConsumer, _MessageDisposer, _Timestamp, _Timestamper, _TimestampThreshold> make_message_throttler(
+message_throttler<_ClientId, _Message, _Clock, _MessageConsumer, _MessageDisposer> make_message_throttler(
 	std::size_t bufferSize,
+	decltype(_Clock{}() - _Clock{}()) threashold,
 	_MessageConsumer messageConsumer = {},
-	_MessageDisposer messageDisposer = {},
-	_TimestampThreshold timestampThreshold = { std::chrono::milliseconds {1000} },
-	_Timestamper timestamper = {}
+	_MessageDisposer messageDisposer = {}
 )
 {
-	return message_throttler<_ClientId, _Message, _MessageConsumer, _MessageDisposer, _Timestamp, _Timestamper, _TimestampThreshold>(
+	return message_throttler<_ClientId, _Message, _Clock, _MessageConsumer, _MessageDisposer>(
 		bufferSize,
+		threashold,
 		messageConsumer,
-		messageDisposer,
-		timestamper,
-		timestampThreshold);
+		messageDisposer);
 }

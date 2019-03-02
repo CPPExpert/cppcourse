@@ -8,28 +8,28 @@
 template<
 	typename _ClientId,
 	typename _Message,
+	typename _Clock,
 	typename _MessageConsumer,
-	typename _MessageDisposer,
-	typename _Timestamp,
-	typename _Timestamper,
-	typename _TimestampThreshold
+	typename _MessageDisposer
 >
 class message_throttler
 {
-public:
-	using _MessageThrottlerInterface = message_throttler_interface<_Message, _MessageConsumer, _MessageDisposer, _Timestamp, _Timestamper, _TimestampThreshold>;
+private:
+	using _MessageThrottlerInterface = message_throttler_interface<_Message, _Clock, _MessageConsumer, _MessageDisposer>;
 
+	using _Time = decltype(_Clock{}());
+	using _Duration = decltype(_Clock{}() - _Clock{}());
+
+public:
 	message_throttler(
 		std::size_t bufferSize,
+		_Duration threashold,
 		const _MessageConsumer& messageConsumer,
-		const _MessageDisposer& messageDisposer,
-		const _Timestamper& timestamper,
-		const _TimestampThreshold& timestampThreshold) :
+		const _MessageDisposer& messageDisposer) :
 		mBufferSize(bufferSize),
+		mThreashold(threashold),
 		mMessageConsumer(messageConsumer),
-		mMessageDisposer(messageDisposer),
-		mTimestamper(timestamper),
-		mTimestampThreshold(timestampThreshold)
+		mMessageDisposer(messageDisposer)
 	{ }
 
 	_MessageThrottlerInterface& from(const _ClientId& clientId)
@@ -37,19 +37,17 @@ public:
 		auto& client = mClients[clientId];
 
 		if (client == nullptr)
-			client = std::make_unique<_MessageThrottlerInterface>(mBufferSize, mMessageConsumer, mMessageDisposer, mTimestamper, mTimestampThreshold);
+			client = std::make_unique<_MessageThrottlerInterface>(mBufferSize, mThreashold, mMessageConsumer, mMessageDisposer);
 
 		return *client;
 	}
 
 private:
 	std::size_t mBufferSize;
+	_Duration mThreashold;
 
 	_MessageConsumer mMessageConsumer;
 	_MessageDisposer mMessageDisposer;
-
-	_Timestamper mTimestamper;
-	_TimestampThreshold mTimestampThreshold;
 
 	std::map<_ClientId, std::unique_ptr<_MessageThrottlerInterface>>  mClients;
 };

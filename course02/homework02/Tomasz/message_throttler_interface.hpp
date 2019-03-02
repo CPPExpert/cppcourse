@@ -4,26 +4,26 @@
 
 template<
 	typename _Message,
+	typename _Clock,
 	typename _MessageConsumer,
-	typename _MessageDisposer,
-	typename _Timestamp,
-	typename _Timestamper,
-	typename _TimestampThreshold
+	typename _MessageDisposer
 >
 class message_throttler_interface
 {
+private:
+	using _Time = decltype(_Clock{}());
+	using _Duration = decltype(_Clock{}() - _Clock{}());
+
 public:
 	message_throttler_interface(
 		std::size_t bufferSize,
+		_Duration threashold,
 		_MessageConsumer& messageConsumer, 
-		_MessageDisposer& messageDisposer, 
-		_Timestamper& timestamper,
-		_TimestampThreshold & timestampThreshold) :
+		_MessageDisposer& messageDisposer) :
 		mBuffer(bufferSize),
+		mThreashold(threashold),
 		mMessageConsumer(messageConsumer),
-		mMessageDisposer(messageDisposer),
-		mTimestamper(timestamper),
-		mTimestampThreshold(timestampThreshold)
+		mMessageDisposer(messageDisposer)
 	{ }
 
 	message_throttler_interface(const message_throttler_interface&) = delete;
@@ -31,7 +31,7 @@ public:
 
 	message_throttler_interface& send(const _Message& message)
 	{
-		auto now = mTimestamper();
+		auto now = mClock();
 
 		try_make_space_in_buffer(now);
 		try_send(message, now);
@@ -40,13 +40,13 @@ public:
 	}
 
 private:
-	void try_make_space_in_buffer(const _Timestamp& now)
+	void try_make_space_in_buffer(const _Time& now)
 	{
-		if (mBuffer.full() && !mTimestampThreshold(now, mBuffer.front()))
+		if (mBuffer.full() && mThreashold < now - mBuffer.front())
 			mBuffer.pop_front();
 	}
 
-	void try_send(const _Message& message, const _Timestamp& now)
+	void try_send(const _Message& message, const _Time& now)
 	{
 		if (mBuffer.full())
 			dispose(message);
@@ -54,7 +54,7 @@ private:
 			consume(message, now);
 	}
 
-	void consume(const _Message& message, const _Timestamp& now)
+	void consume(const _Message& message, const _Time& now)
 	{
 		mMessageConsumer(message);
 		mBuffer.push_back(now);
@@ -65,11 +65,11 @@ private:
 		mMessageDisposer(message);
 	}
 
+	_Clock mClock;
+	_Duration mThreashold;
+
 	_MessageConsumer& mMessageConsumer;
 	_MessageDisposer& mMessageDisposer;
 
-	_Timestamper& mTimestamper;
-	_TimestampThreshold& mTimestampThreshold;
-
-	boost::circular_buffer<_Timestamp> mBuffer;
+	boost::circular_buffer<_Time> mBuffer;
 };

@@ -13,6 +13,7 @@ void throttler_test()
 
 	auto throttler = make_message_throttler<UserId, Message>(
 		4,
+		std::chrono::milliseconds{ 1000 },
 		[&](const Message& message) { last_consumed_message = message; }
 	);
 
@@ -30,6 +31,7 @@ void throttler_dispose_test()
 
 	auto throttler = make_message_throttler<UserId, Message>(
 		4,
+		std::chrono::milliseconds{ 1000 },
 		[&](const Message& message) { last_consumed_message = message; },
 		[&](const Message& message) { last_disposed_message = message; }
 	);
@@ -52,6 +54,7 @@ void throttler_single_interface_test()
 
 	auto throttler = make_message_throttler<UserId, Message>(
 		4,
+		std::chrono::milliseconds{ 1000 },
 		[&](const Message& message) { last_consumed_message = message; },
 		[&](const Message& message) { last_disposed_message = message; }
 	);
@@ -75,6 +78,7 @@ void throttler_multiple_users_test()
 
 	auto throttler = make_message_throttler<UserId, Message>(
 		4,
+		std::chrono::milliseconds{ 1000 },
 		[&](const Message& message) { last_consumed_message = message; },
 		[&](const Message& message) { last_disposed_message = message; }
 	);
@@ -98,9 +102,9 @@ void throttler_timeout_test()
 
 	auto throttler = make_message_throttler<UserId, Message>(
 		4,
+		std::chrono::milliseconds{ -1 },
 		[&](const Message& message) { last_consumed_message = message; },
-		[&](const Message& message) { last_disposed_message = message; },
-		[](std::chrono::microseconds now, std::chrono::microseconds timestamp) { return false; }
+		[&](const Message& message) { last_disposed_message = message; }
 	);
 
 	throttler.from(1).send(1);
@@ -114,32 +118,6 @@ void throttler_timeout_test()
 	assert(last_disposed_message == 0);
 }
 
-void throttler_custom_timestamper_test()
-{
-	std::size_t timestamp = 0;
-
-	Message last_consumed_message = 0;
-	Message last_disposed_message = 0;
-
-	auto throttler = make_message_throttler<UserId, Message, std::size_t>(
-		4,
-		[&](const Message& message) { last_consumed_message = message; },
-		[&](const Message& message) { last_disposed_message = message; },
-		[&](std::size_t now, std::size_t timestamp) { return timestamp > 0; },
-		[&]() { return timestamp++; }
-	);
-
-	throttler.from(1).send(1);
-	throttler.from(1).send(2);
-	throttler.from(1).send(3);
-	throttler.from(1).send(4);
-	throttler.from(1).send(5);
-	throttler.from(1).send(6);
-
-	assert(last_consumed_message == 5);
-	assert(last_disposed_message == 6);
-}
-
 void throttler_chrono_test()
 {
 	Message last_consumed_message = 0;
@@ -147,9 +125,9 @@ void throttler_chrono_test()
 
 	auto throttler = make_message_throttler<UserId, Message>(
 		4,
+		std::chrono::milliseconds{ 100 },
 		[&](const Message& message) { last_consumed_message = message; },
-		[&](const Message& message) { last_disposed_message = message; },
-		chrono_timestamp_threshold{ std::chrono::milliseconds{ 100 } }
+		[&](const Message& message) { last_disposed_message = message; }
 	);
 
 	throttler.from(1).send(1);
@@ -179,9 +157,9 @@ void throttler_chrono_partial_test()
 
 	auto throttler = make_message_throttler<UserId, Message>(
 		4,
+		std::chrono::milliseconds{ 100 },
 		[&](const Message& message) { last_consumed_message = message; },
-		[&](const Message& message) { last_disposed_message = message; },
-		chrono_timestamp_threshold{ std::chrono::milliseconds{ 100 } }
+		[&](const Message& message) { last_disposed_message = message; }
 	);
 
 	throttler.from(1).send(1);
@@ -209,9 +187,9 @@ void throttler_chrono_full_cycle_test()
 
 	auto throttler = make_message_throttler<UserId, Message>(
 		4,
+		std::chrono::milliseconds{ 100 },
 		[&](const Message& message) { last_consumed_message = message; },
-		[&](const Message& message) { last_disposed_message = message; },
-		chrono_timestamp_threshold{ std::chrono::milliseconds{ 100 } }
+		[&](const Message& message) { last_disposed_message = message; }
 	);
 
 	throttler.from(1).send(1);
@@ -238,9 +216,9 @@ void throttler_chrono_muliple_users_test()
 
 	auto throttler = make_message_throttler<UserId, Message>(
 		4,
+		std::chrono::milliseconds{ 100 },
 		[&](const Message& message) { last_consumed_message = message; },
-		[&](const Message& message) { last_disposed_message = message; },
-		chrono_timestamp_threshold{ std::chrono::milliseconds{ 100 } }
+		[&](const Message& message) { last_disposed_message = message; }
 	);
 
 	throttler.from(1).send(1);
@@ -267,7 +245,6 @@ int main()
 	throttler_single_interface_test();
 	throttler_multiple_users_test();
 	throttler_timeout_test();
-	throttler_custom_timestamper_test();
 	throttler_chrono_test();
 	throttler_chrono_partial_test();
 	throttler_chrono_full_cycle_test();
